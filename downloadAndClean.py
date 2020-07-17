@@ -1,5 +1,6 @@
 import sys, os, requests, csv
 import pandas as pd
+import numpy as np
 #-------------------------------------------------------
 '''
 Project Plan
@@ -33,7 +34,17 @@ outFolder = r'H:\COVID_Data'
 #Logic
 
 #Restructure Neighbourhood Profile data in pandas as it comes in a non-useful format
-nProfiles = pd.read_csv(nProfilesCSV, header== False)
+nProfiles = pd.read_csv(nProfilesCSV)
+nProfiles = nProfiles.T #Transposes columns into rows and vice versa
+nProfiles = nProfiles[4:]#Remove useless columns
+nProfiles = nProfiles.drop(nProfiles.index[1]) # Remove Toronto wide data as we don't need it for the map
+
+nProfiles.columns = list(nProfiles.iloc[0]) # Set column names to the first row
+nProfiles.drop(['Characteristic'], inplace= True)
+nProfiles['Index'] = np.array(range(0,len(nProfiles)))
+nProfiles = nProfiles.reset_index().set_index('Index')
+nProfiles.rename(columns={'index': 'Neighbourhood Name'}, inplace= True)
+
 
 print(nProfiles.head())
 sys.exit() #Below works fix the neighborhoods first thats more work

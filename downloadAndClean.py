@@ -24,6 +24,9 @@ def download_csv(CSV_URL):
         my_list.remove(column_names)
         df = pd.DataFrame(my_list, columns= column_names)
         return df
+def caseCounter(neighbourhoodName, casesDF):
+    count = len(case_df.loc[case_df.Neighbourhood_Name == neighbourhoodName])
+    return count
 #-------------------------------------------------------
 # Inputs
 dataPath = 'https://ckan0.cf.opendata.inter.prod-toronto.ca/download_resource/e5bf35bc-e681-43da-b2ce-0242d00922ad?format=csv'
@@ -43,15 +46,20 @@ nProfiles.columns = list(nProfiles.iloc[0]) # Set column names to the first row
 nProfiles.drop(['Characteristic'], inplace= True)
 nProfiles['Index'] = np.array(range(0,len(nProfiles)))
 nProfiles = nProfiles.reset_index().set_index('Index')
-nProfiles.rename(columns={'index': 'Neighbourhood Name'}, inplace= True)
+nProfiles.rename(columns={'index': 'Neighbourhood_Name'}, inplace= True)
 
-
-print(nProfiles.head())
-sys.exit() #Below works fix the neighborhoods first thats more work
 #Download COVID data and convert it into a pandas dataframe
-caseData = os.path.join(outFolder, 'TO_CaseData.csv')
 print('Downloading TO case data from source')
 case_df = download_csv(dataPath)
+casesByN = pd.DataFrame(list(nProfiles.Neighbourhood_Name), columns= ['Neighbourhood Name'])
+casesByN['Total Case Count'] = [len(case_df.loc[case_df['Neighbourhood Name'] == x]) for x in list(casesByN['Neighbourhood Name'])]
 
+
+for n in list(nProfiles.Neighbourhood_Name): # Aggregate Cases into summary data
+    ndf = casesByN.loc[casesByN['Neighbourhood Name'] == n]
+    
+
+
+print(casesByN.head())
 
 print('Done!')

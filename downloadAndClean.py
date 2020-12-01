@@ -3,6 +3,7 @@ from numpy.core.numeric import NaN
 from numpy.lib.function_base import append
 import pandas as pd
 import numpy as np
+import geopandas as gpd
 #-------------------------------------------------------
 '''
 Project Plan
@@ -40,6 +41,7 @@ def sortByColumn(df, sort_col):
 # Inputs
 dataPath = 'https://ckan0.cf.opendata.inter.prod-toronto.ca/download_resource/e5bf35bc-e681-43da-b2ce-0242d00922ad?format=csv'
 nProfilesCSV = r'H:\TorontoCOVID_FSA\data\neighbourhood-profiles-2016-csv.csv'
+neighbourhoods_json = r'H:\TorontoCOVID_FSA\data\Neighbourhoods.geojson'
 outFolder = r'H:\TorontoCOVID_FSA\data'
 
 #-------------------------------------------------------
@@ -69,16 +71,11 @@ case_df = pd.read_csv(os.path.join(outFolder, 'case_df.csv'))
 #Loop over case data by neighborhood and get counts
 field_names = ['Neighbourhood_Name', 'Total_Case_Count']
 out_rows = []
-nh = case_df['Neighbourhood Name'].unique().tolist()
-nh = [h for h in nh if str(h) != 'nan']
+nh = case_df['Neighbourhood Name'].unique().tolist() # Get all unique N's
+nh = [h for h in nh if str(h) != 'nan'] # Remove the nan that was showing up
 for n in nh: # Aggregate Cases into summary data
-    print(n)
-    if n == 'nan':
-        sys.exit()
     #Setup neighborhood df's
-    #ndf = casesByN.loc[casesByN['Neighbourhood Name'] == n] 
     n_cases_df = case_df.loc[case_df['Neighbourhood Name'] == n]
-
     new_row = [n, len(n_cases_df)] # Create new row to be added to the output df
 
     # Sort the age group row to ensure correct order
@@ -86,7 +83,6 @@ for n in nh: # Aggregate Cases into summary data
     n_cases_df['sort'] = n_cases_df['Age Group'].str.extract('(\d+)', expand=False).astype(int)
     n_cases_df = n_cases_df.sort_values('sort', ascending=False)
     n_cases_df = n_cases_df.drop('sort', axis=1)
-
     #Append new count for specific age category to the new row list
     # Add field names to the field names list
     for age_cat in n_cases_df['Age Group'].unique().tolist():
@@ -99,11 +95,24 @@ for n in nh: # Aggregate Cases into summary data
         else:
             new_row.append(len(cat_cases_df))
     
+    # Add client gender counts
     n_cases_df = sortByColumn(n_cases_df, 'Client Gender')
+    
     out_rows.append(new_row)   
     # print(field_names)
     # print(new_row)
     # sys.exit()
 n_covid_df = pd.DataFrame(out_rows, columns=field_names)
+n_covid_df = n_covid_df.sort_values('Neighbourhood_Name', ascending=True)
+n_covid_df['N_INT'] = range(1, len(n_covid_df)+1)
 n_covid_df.to_csv(os.path.join(outFolder, 'To_COVID_n_Counts.csv'), index=False)
+
+#Join the created covid cound csv to the neighbourhoods shp and export
+n_gdf = gpd.read_file(neighbourhoods_json)
+n_gdf['AREA_STRING'] = n_gdf['AREA_NAME'].str.split('(', 1).str[0]
+n_gdf = n_gdf.sort_values('AREA_STRING', ascending= True)
+n_gdf['AREA_INT'] = range(1, len(n_gdf)+1)
+n_gdf = n_gdf.merge(n_covid_df, how='left', left_on= 'AREA_INT', right_on='N_INT')
+
+n_gdf.to_file(os.path.join(outFolder, 'Neighbourhood_COVID.geojson'), driver= 'GeoJSON')
 print('Done!')
